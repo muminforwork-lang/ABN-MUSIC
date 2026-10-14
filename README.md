@@ -9,7 +9,7 @@ A purpose-built music bot with three text commands and one polished Discord cont
 - **`.stop`** — stop playback and clear the queue without disconnecting the bot.
 - **Control panel buttons** — Pause/Resume, Next, Stop, and Repeat Current Track.
 - **Smart empty-channel behavior** — pause music when the last human leaves, then resume when someone returns.
-- **Cute pink player panel** — a fresh panel message appears when a track finishes and the next track starts; the bot cycles through playful activity statuses.
+- **Cute pink player panel** — a fresh panel message appears when a track finishes or advances; the bot cycles through playful activity statuses.
 - **Restart recovery** — a Railway Volume stores the last voice channel, panel message, current URL, queue URLs, and repeat setting. The bot tries to rejoin and replay after deployment/restart.
 - **Private audio engine** — Lavalink has no public domain or TCP proxy. The bot reaches it over Railway private networking.
 - **Audio tuning** — maximum Opus encoder quality (`10`) and high resampling quality are configured. The source's original quality and the Discord voice channel bitrate still set practical limits.
@@ -141,7 +141,7 @@ Do not generate a public domain for either service. The bot talks to Discord thr
 5. Join a different voice channel and type `.join` there. The bot should move to that channel. Only one voice channel per server can be active per bot account.
 6. Try `.stop` to stop playback and clear the queue while leaving the bot connected.
 7. Leave the voice channel empty; music should pause. Rejoin, or have another human join, to resume the track.
-6. Restart/redeploy `music-bot`. With the `/data` volume attached, it should try to rejoin the saved channel and restore the saved current URL and queue. The current link starts from the beginning.
+8. Restart/redeploy `music-bot`. With the `/data` volume attached, it should try to rejoin the saved channel and restore the saved current URL and queue. The current link starts from the beginning.
 
 ## Step 8 — Optional: improve Spotify / Apple Music resolution
 
