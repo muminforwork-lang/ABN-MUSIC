@@ -1,0 +1,48 @@
+PRIVATE DISCORD MUSIC BOT — RAILWAY CHECKLIST
+
+DISCORD
+[ ] Create bot application
+[ ] Enable Message Content Intent
+[ ] Turn off Public Bot if available
+[ ] Invite using bot scope and View Channels / Send Messages / Embed Links / Read Message History / Connect / Speak
+[ ] Copy the private server ID
+
+GITHUB
+[ ] Create a PRIVATE repository
+[ ] Repository root contains README.md, bot/, lavalink/
+[ ] No real token/password committed
+
+RAILWAY PROJECT
+[ ] Create an Empty Project
+[ ] Keep both services in the same project AND environment
+[ ] Use a paid plan suitable for two always-on services; watch resource usage
+
+LAVALINK SERVICE
+[ ] Name: lavalink
+[ ] Root Directory: /lavalink
+[ ] Variables: LAVALINK_PASSWORD (strong random), JAVA_TOOL_OPTIONS=-Xms128m -Xmx768m
+[ ] No public domain or TCP proxy
+[ ] Logs show plugins loaded and server listening on 2333
+
+BOT SERVICE
+[ ] Name: music-bot
+[ ] Root Directory: /bot
+[ ] Set DISCORD_TOKEN
+[ ] Set GUILD_ID
+[ ] Set LAVALINK_HOST=lavalink.railway.internal
+[ ] Set LAVALINK_PORT=2333
+[ ] Set same LAVALINK_PASSWORD as Lavalink
+[ ] Set STATE_FILE=/data/state.json
+[ ] Attach Railway Volume at /data
+[ ] Keep serverless/sleep mode disabled
+[ ] Restart policy: Always, if available
+[ ] Logs show Discord connected and Lavalink is ready
+
+DISCORD TEST
+[ ] Join target voice channel and type .join
+[ ] Type .play with a real public YouTube URL
+[ ] Test Pause/Resume, Next, Stop, Loop buttons
+[ ] Confirm Stop leaves bot in voice
+[ ] Use .join from another channel to move it
+[ ] Redeploy and confirm voice rejoin after restart
+[ ] Check Railway Workspace > Usage/Billing
