@@ -233,10 +233,10 @@ class PrivateMusicBot(commands.Bot):
         else:
             if voice is not None:
                 try:
-                    await voice.disconnect(force=True)
+                    await voice.disconnect(force=False)
                 except Exception:
                     log.debug("Ignoring stale voice-client cleanup error.", exc_info=True)
-            player = await channel.connect(cls=wavelink.Player, self_deaf=True, reconnect=True)
+            player = await channel.connect(cls=wavelink.Player, self_deaf=False, reconnect=True)
         # Reapply these in case a library default changes in a future release.
         player.inactive_timeout = 0
         player.inactive_channel_tokens = 0
