@@ -215,7 +215,7 @@ class PrivateMusicBot(commands.Bot):
 
     async def on_ready(self) -> None:
         log.info("Discord connected as %s (ID %s).", self.user, self.user.id if self.user else "unknown")
-        log.info("Locked to configured guild ID %s; only .join and .play are registered.", GUILD_ID)
+        log.info("Locked to configured guild ID %s; commands: .join, .play, .stop.", GUILD_ID)
         if self.lavalink_ready.is_set() and (self.restore_task is None or self.restore_task.done()):
             self.restore_task = asyncio.create_task(self.restore_saved_session(), name="restore-music-session")
 
