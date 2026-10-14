@@ -152,12 +152,42 @@ class PrivateMusicBot(commands.Bot):
         self.restore_task: asyncio.Task[None] | None = None
         self._reconnect_pending = False
         self._startup_restore_done = False
+        self._auto_paused_for_empty = False
+        self._auto_paused_for_server_mute = False
+        self._activity_task: asyncio.Task[None] | None = None
 
     async def setup_hook(self) -> None:
         self.music.load()
         # Fixed custom IDs + timeout=None make the buttons survive bot restarts.
         self.add_view(MusicControls(self))
         asyncio.create_task(self._connect_lavalink(), name="connect-lavalink")
+        if self._activity_task is None or self._activity_task.done():
+            self._activity_task = asyncio.create_task(self._rotate_funny_activity(), name="funny-bot-activity")
+
+    async def _rotate_funny_activity(self) -> None:
+        """Cycle through lighthearted presence messages without spamming chat."""
+        activities = [
+            ("listening", "your questionable music taste 🎀"),
+            ("playing", "DJ in a tiny pink room 🌸"),
+            ("watching", "the queue like a hawk 🐣"),
+            ("playing", "pretending to be productive ✨"),
+            ("listening", "sad songs at 3 AM 💗"),
+        ]
+        await self.wait_until_ready()
+        index = 0
+        while not self.is_closed():
+            kind, message = activities[index % len(activities)]
+            activity_type = {
+                "listening": discord.ActivityType.listening,
+                "watching": discord.ActivityType.watching,
+                "playing": discord.ActivityType.playing,
+            }[kind]
+            try:
+                await self.change_presence(activity=discord.Activity(type=activity_type, name=message))
+            except (discord.HTTPException, discord.Forbidden):
+                log.debug("Could not update bot activity.", exc_info=True)
+            index += 1
+            await asyncio.sleep(900)
 
     async def _connect_lavalink(self) -> None:
         uri = f"http://{LAVALINK_HOST}:{LAVALINK_PORT}"
@@ -186,7 +216,7 @@ class PrivateMusicBot(commands.Bot):
 
     async def on_ready(self) -> None:
         log.info("Discord connected as %s (ID %s).", self.user, self.user.id if self.user else "unknown")
-        log.info("Locked to configured guild ID %s; only .join and .play are registered.", GUILD_ID)
+        log.info("Locked to configured guild ID %s; commands: .join, .play, .stop.", GUILD_ID)
         if self.lavalink_ready.is_set() and (self.restore_task is None or self.restore_task.done()):
             self.restore_task = asyncio.create_task(self.restore_saved_session(), name="restore-music-session")
 
@@ -319,7 +349,7 @@ class PrivateMusicBot(commands.Bot):
                     await player.stop(force=True)
                 except Exception:
                     log.debug("Player was already stopped during queue advance.", exc_info=True)
-        await self.refresh_panel()
+        await self.refresh_panel(force_new=next_track is not None or natural_end)
 
     async def stop_music(self) -> None:
         player = self.player()
@@ -352,7 +382,12 @@ class PrivateMusicBot(commands.Bot):
         await self.refresh_panel()
         return self.music.loop_enabled
 
-    async def refresh_panel(self, preferred_channel: discord.abc.Messageable | None = None) -> None:
+    async def refresh_panel(
+        self,
+        preferred_channel: discord.abc.Messageable | None = None,
+        *,
+        force_new: bool = False,
+    ) -> None:
         async with self.music.panel_lock:
             if preferred_channel is not None and hasattr(preferred_channel, "id"):
                 new_channel_id = int(preferred_channel.id)
@@ -384,6 +419,14 @@ class PrivateMusicBot(commands.Bot):
                     await self.music.save()
                     return
 
+            if force_new and self.music.panel_message_id:
+                try:
+                    old_message = await channel.fetch_message(self.music.panel_message_id)
+                    await old_message.delete()
+                except (discord.NotFound, discord.Forbidden, discord.HTTPException, AttributeError):
+                    log.debug("Could not replace previous music panel message.", exc_info=True)
+                self.music.panel_message_id = None
+
             embed = self.make_embed()
             view = MusicControls(self)
             message: discord.Message | None = None
@@ -408,9 +451,9 @@ class PrivateMusicBot(commands.Bot):
         player = self.player()
         current = self.music.current
         embed = discord.Embed(
-            title="PRIVATE MUSIC PLAYER",
-            colour=discord.Colour.from_rgb(88, 101, 242),
-            description="A dedicated 24/7 music session. Use the controls below; the bot will stay in voice when idle.",
+            title="🎀  ABN's Cozy Music Corner  🎀",
+            colour=discord.Colour.from_rgb(255, 105, 180),
+            description="૮ ˶ᵔ ᵕ ᵔ˶ ა  your tiny pink DJ is on duty!\nUse the buttons below to control the vibes. I'll stay in voice while idle. 💗",
         )
         if current is not None:
             uri = track_url(current)
@@ -425,7 +468,7 @@ class PrivateMusicBot(commands.Bot):
             if isinstance(artwork, str) and artwork.startswith("https://"):
                 embed.set_thumbnail(url=artwork)
         else:
-            embed.add_field(name="Status", value="Connected · Waiting for a link", inline=False)
+            embed.add_field(name="Status", value="🌸 Waiting for a song... give me a cute one!", inline=False)
 
         voice_channel = player.channel if player and player.connected else None
         if voice_channel is None and self.music.voice_channel_id:
@@ -433,6 +476,7 @@ class PrivateMusicBot(commands.Bot):
             voice_channel = guild.get_channel(self.music.voice_channel_id) if guild else None
         embed.add_field(name="Voice Channel", value=voice_channel.mention if voice_channel else "Not connected", inline=True)
         embed.add_field(name="Loop", value="🔁 On" if self.music.loop_enabled else "Off", inline=True)
+        embed.add_field(name="Tiny DJ tip", value="Type `.play song name` or `.play link` · `.stop` clears the queue 🧸", inline=False)
 
         upcoming = list(self.music.queue)[:5]
         if upcoming:
@@ -446,7 +490,7 @@ class PrivateMusicBot(commands.Bot):
             embed.add_field(name=f"Up Next · {len(self.music.queue)} queued", value="\n".join(lines), inline=False)
         else:
             embed.add_field(name="Up Next", value="Queue is empty", inline=False)
-        embed.set_footer(text="Commands: .join  |  .play <link> • One bot account can play in one voice channel per server")
+        embed.set_footer(text="🎀 .join  ·  .play song name/link  ·  .stop  |  made with pink vibes & questionable taste 💗")
         return embed
 
     async def restore_saved_session(self) -> None:
@@ -543,15 +587,71 @@ class PrivateMusicBot(commands.Bot):
         before: discord.VoiceState,
         after: discord.VoiceState,
     ) -> None:
-        if not self.user or member.id != self.user.id or member.guild.id != GUILD_ID:
+        if member.guild.id != GUILD_ID:
             return
-        if before.channel is not None and after.channel is None and self.music.voice_channel_id:
-            # Rejoin if Discord or a moderator unexpectedly disconnects the bot. .join uses
-            # a direct move (channel -> channel), so it does not trigger this branch.
-            if not self._reconnect_pending:
-                self._reconnect_pending = True
-                asyncio.create_task(self._recover_voice(), name="recover-voice")
 
+        # Handle the bot's own voice state: disconnect recovery and server mute/unmute.
+        if self.user and member.id == self.user.id:
+            if before.channel is not None and after.channel is None and self.music.voice_channel_id:
+                if not self._reconnect_pending:
+                    self._reconnect_pending = True
+                    asyncio.create_task(self._recover_voice(), name="recover-voice")
+                return
+
+            player = self.player()
+            if player and player.connected and self.music.current is not None:
+                if after.mute and not self._auto_paused_for_server_mute:
+                    try:
+                        if not player.paused:
+                            await player.pause(True)
+                        self._auto_paused_for_server_mute = True
+                        await self.refresh_panel()
+                        log.info("Paused music because the bot was server-muted.")
+                    except Exception:
+                        log.exception("Could not pause music after the bot was server-muted.")
+                elif not after.mute and self._auto_paused_for_server_mute:
+                    self._auto_paused_for_server_mute = False
+                    humans_present = bool(player.channel and any(not person.bot for person in player.channel.members))
+                    if humans_present and not self._auto_paused_for_empty and player.paused:
+                        try:
+                            await player.pause(False)
+                            await self.refresh_panel()
+                            log.info("Resumed music because the bot was server-unmuted.")
+                        except Exception:
+                            log.exception("Could not resume music after the bot was server-unmuted.")
+            return
+
+        # Ignore other bots; only real humans determine whether the room is empty.
+        if member.bot:
+            return
+        player = self.player()
+        if not player or not player.connected or not player.channel:
+            return
+        voice_channel = player.channel
+        if before.channel != voice_channel and after.channel != voice_channel:
+            return
+
+        humans_present = any(not person.bot for person in voice_channel.members)
+        if not humans_present and self.music.current is not None:
+            # Bots do not count as people. Remember the reason even if another condition
+            # (such as server mute) has already paused the track.
+            self._auto_paused_for_empty = True
+            if not player.paused:
+                try:
+                    await player.pause(True)
+                    await self.refresh_panel()
+                    log.info("Paused music because no human remains in the voice channel.")
+                except Exception:
+                    log.exception("Could not auto-pause playback for an empty voice channel.")
+        elif humans_present and self._auto_paused_for_empty:
+            self._auto_paused_for_empty = False
+            if not self._auto_paused_for_server_mute and player.paused:
+                try:
+                    await player.pause(False)
+                    await self.refresh_panel()
+                    log.info("Resumed music because a human returned to voice.")
+                except Exception:
+                    log.exception("Could not resume playback when a human returned.")
     async def _recover_voice(self) -> None:
         try:
             await asyncio.sleep(4)
@@ -722,6 +822,25 @@ async def play_command(ctx: commands.Context[Any], *, link: str | None = None) -
     except Exception as exc:
         log.exception(".play failed")
         await ctx.reply(f"Something went wrong loading that link: `{str(exc)[:250]}`", mention_author=False)
+
+
+@bot.command(name="stop")
+@commands.cooldown(3, 10, commands.BucketType.user)
+@configured_guild_check()
+async def stop_command(ctx: commands.Context[Any]) -> None:
+    """Stop the current track and clear the queue without leaving voice."""
+    player = bot.player()
+    if not player or not player.connected:
+        await ctx.reply("I'm not in voice right now, cutie. Use `.join` first. 🎀", mention_author=False)
+        return
+    if not isinstance(ctx.author, discord.Member) or not ctx.author.voice or not ctx.author.voice.channel:
+        await ctx.reply("Join my voice channel first so I know you're really the DJ. 💗", mention_author=False)
+        return
+    if not player.channel or ctx.author.voice.channel.id != player.channel.id:
+        await ctx.reply("You need to be in my voice channel to stop the music. 🌸", mention_author=False)
+        return
+    await bot.stop_music()
+    await ctx.reply("⏹️ Music stopped and the queue is cleared! I'll stay here for the next vibe. 🎀", mention_author=False)
 
 
 @bot.event
