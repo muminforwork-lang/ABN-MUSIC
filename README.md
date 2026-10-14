@@ -5,7 +5,7 @@ A purpose-built music bot with only two text commands and one polished Discord c
 ## What you get
 
 - **`.join`** — join the voice channel you are in, or move the bot to another channel. It stays connected while idle, even when no humans are in the channel.
-- **`.play <link>`** — play a supported public link; tracks and playlist items are queued.
+- **`.play <song name or link>`** — search by plain song name or play a supported public link; tracks and playlist items are queued. Plain-text search tries YouTube Music, YouTube, then SoundCloud.
 - **Control panel buttons** — Pause/Resume, Next, Stop, and Repeat Current Track.
 - **No extra text commands** — only `.join` and `.play` are registered.
 - **Restart recovery** — a Railway Volume stores the last voice channel, panel message, current URL, queue URLs, and repeat setting. The bot tries to rejoin and replay after deployment/restart.
@@ -123,13 +123,14 @@ Do not generate a public domain for either service. The bot talks to Discord thr
    .join
    ```
 
-3. Then paste a public link:
+3. Search by song name or paste a public link:
 
    ```text
+   .play never gonna give you up
    .play https://www.youtube.com/watch?v=VIDEO_ID
    ```
 
-   Replace the example with a real public video URL.
+   Text searches try YouTube Music, YouTube, and SoundCloud in order. Replace the example URL with a real public video URL.
 4. Check that the embed/control panel appears and that the audio starts. Test each button:
    - **Pause/Resume** pauses and resumes the current track.
    - **Next** skips the current track and starts the next queued item; if the queue is empty, playback stops but voice stays connected.
@@ -152,7 +153,7 @@ For Apple Music, add a valid MusicKit/Apple Music API token as `APPLE_MUSIC_API_
 ## Everyday use
 
 - `.join` — join or move to the voice channel you are currently in; remains connected when idle.
-- `.play <link>` — play a public supported media URL or queue playlist tracks.
+- `.play <song name or link>` — search for a song by name, play a public supported media URL, or queue playlist tracks. Plain-text search tries YouTube Music, YouTube, then SoundCloud.
 - The panel is the only playback UI: Pause/Resume, Next, Stop, Repeat Current Track.
 
 Commands/buttons are restricted to the configured server. The controls only work for someone currently in the same voice channel as the bot. The bot intentionally has no `.leave`, `.skip`, `.stop`, `.loop`, `.help`, dashboard, or other text commands.

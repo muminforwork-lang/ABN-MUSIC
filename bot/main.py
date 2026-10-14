@@ -207,19 +207,44 @@ class PrivateMusicBot(commands.Bot):
         except asyncio.TimeoutError:
             return False
 
-    async def _get_tracks(self, url: str) -> list[wavelink.Playable]:
+    async def _get_tracks(self, query_or_url: str) -> list[wavelink.Playable]:
+        """Resolve a direct URL, or search multiple supported sources for a song name."""
         if not await self.wait_for_audio_engine():
             raise RuntimeError("The audio engine is still starting. Try again in a few seconds.")
-        result = await wavelink.Playable.search(url)
-        if isinstance(result, wavelink.Playlist):
-            tracks = list(result.tracks)
-        elif isinstance(result, list):
-            tracks = list(result)
-        elif result:
-            tracks = [result]  # Defensive for future Wavelink return variants.
-        else:
-            tracks = []
-        return [track for track in tracks if isinstance(track, wavelink.Playable)]
+
+        value = query_or_url.strip().strip("<>")
+        if not value:
+            return []
+
+        # Keep direct URLs intact so playlists and provider-specific URL resolvers work.
+        # For plain text, try YouTube Music first, then YouTube, then SoundCloud.
+        searches = [value] if valid_http_url(value) else [
+            f"ytmsearch:{value}",
+            f"ytsearch:{value}",
+            f"scsearch:{value}",
+        ]
+
+        for search in searches:
+            try:
+                result = await wavelink.Playable.search(search)
+                if isinstance(result, wavelink.Playlist):
+                    tracks = list(result.tracks)
+                elif isinstance(result, list):
+                    tracks = list(result)
+                elif result:
+                    tracks = [result]  # Defensive for future Wavelink return variants.
+                else:
+                    tracks = []
+                playable = [track for track in tracks if isinstance(track, wavelink.Playable)]
+                if playable:
+                    if not valid_http_url(value):
+                        log.info("Song search succeeded using %s.", search.split(":", 1)[0])
+                    return playable
+            except Exception as exc:
+                # One provider failing must not prevent trying the next configured search source.
+                log.debug("Search source %s failed: %s", search.split(":", 1)[0], exc)
+
+        return []
 
     async def ensure_player(self, channel: discord.VoiceChannel | discord.StageChannel) -> wavelink.Player:
         if not await self.wait_for_audio_engine():
@@ -644,16 +669,16 @@ async def join_command(ctx: commands.Context[Any]) -> None:
 @commands.cooldown(5, 10, commands.BucketType.user)
 @configured_guild_check()
 async def play_command(ctx: commands.Context[Any], *, link: str | None = None) -> None:
-    """Play a public supported link or add a playlist's tracks to the queue."""
+    """Play a supported URL/playlist or search for a song by name."""
     if not link:
-        await ctx.reply("Usage: `.play https://link-to-a-track-or-playlist`", mention_author=False)
+        await ctx.reply("Usage: `.play song name` or `.play https://link-to-a-track-or-playlist`", mention_author=False)
         return
     link = link.strip().strip("<>")
-    if not valid_http_url(link):
-        await ctx.reply("Please send a full `https://` or `http://` track, playlist, or stream URL.", mention_author=False)
+    if len(link) > MAX_URL_LENGTH:
+        await ctx.reply("That song name or link is too long. Please shorten it and try again.", mention_author=False)
         return
     if not isinstance(ctx.author, discord.Member) or not ctx.author.voice or not ctx.author.voice.channel:
-        await ctx.reply("Join the voice channel first, then run `.play <link>`.", mention_author=False)
+        await ctx.reply("Join the voice channel first, then run `.play song name` or `.play <link>`.", mention_author=False)
         return
     channel = ctx.author.voice.channel
     if not isinstance(channel, (discord.VoiceChannel, discord.StageChannel)):
@@ -672,7 +697,7 @@ async def play_command(ctx: commands.Context[Any], *, link: str | None = None) -
         tracks = await bot._get_tracks(link)
         if not tracks:
             await ctx.reply(
-                "I couldn't load that link. It may be private, region-locked, DRM-protected, unsupported, or temporarily blocked by its source. Try a public direct link or the track's YouTube/SoundCloud URL.",
+                "I couldn't find a playable result. Try another song name or a public supported link. Some private, region-locked, DRM-protected, or source-blocked media cannot be played.",
                 mention_author=False,
             )
             return
@@ -710,7 +735,7 @@ async def on_command_error(ctx: commands.Context[Any], error: commands.CommandEr
         await ctx.reply("This bot is restricted to its configured private server.", mention_author=False)
         return
     if isinstance(error, commands.MissingRequiredArgument):
-        await ctx.reply("Usage: `.play https://link-to-a-track-or-playlist`", mention_author=False)
+        await ctx.reply("Usage: `.play song name` or `.play https://link-to-a-track-or-playlist`", mention_author=False)
         return
     log.error("Unhandled command error", exc_info=error)
 
