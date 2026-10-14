@@ -297,7 +297,9 @@ class PrivateMusicBot(commands.Bot):
         player.inactive_channel_tokens = 0
         self.music.voice_channel_id = channel.id
         await self.music.save()
-        return player    async def start_track(self, player: wavelink.Player, track: wavelink.Playable) -> None:
+        return player
+
+    async def start_track(self, player: wavelink.Player, track: wavelink.Playable) -> None:
         self.music.current = track
         self.music.current_url = track_url(track) or self.music.current_url
         await self.music.save()
