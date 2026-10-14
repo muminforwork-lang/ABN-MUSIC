@@ -598,7 +598,8 @@ class PrivateMusicBot(commands.Bot):
                     asyncio.create_task(self._recover_voice(), name="recover-voice")
                 return
 
-            player = self.player()            if player and player.connected and self.music.current is not None:
+            player = self.player()
+            if player and player.connected and self.music.current is not None:
                 if after.mute and not self._auto_paused_for_server_mute:
                     try:
                         if not player.paused:
