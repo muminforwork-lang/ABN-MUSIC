@@ -1,13 +1,15 @@
 # Private Discord Music Bot — Railway Edition
 
-A purpose-built music bot with only two text commands and one polished Discord control panel. It is intended for one private Discord server and one voice session per server.
+A purpose-built music bot with three text commands and one polished Discord control panel. It is intended for one private Discord server and one voice session per server.
 
 ## What you get
 
 - **`.join`** — join the voice channel you are in, or move the bot to another channel. It stays connected while idle, even when no humans are in the channel.
 - **`.play <song name or link>`** — search by plain song name or play a supported public link; tracks and playlist items are queued. Plain-text search tries YouTube Music, YouTube, then SoundCloud.
+- **`.stop`** — stop playback and clear the queue without disconnecting the bot.
 - **Control panel buttons** — Pause/Resume, Next, Stop, and Repeat Current Track.
-- **No extra text commands** — only `.join` and `.play` are registered.
+- **Smart empty-channel behavior** — pause music when the last human leaves, then resume when someone returns.
+- **Cute pink player panel** — a fresh panel message appears when a track finishes and the next track starts; the bot cycles through playful activity statuses.
 - **Restart recovery** — a Railway Volume stores the last voice channel, panel message, current URL, queue URLs, and repeat setting. The bot tries to rejoin and replay after deployment/restart.
 - **Private audio engine** — Lavalink has no public domain or TCP proxy. The bot reaches it over Railway private networking.
 - **Audio tuning** — maximum Opus encoder quality (`10`) and high resampling quality are configured. The source's original quality and the Discord voice channel bitrate still set practical limits.
@@ -26,7 +28,7 @@ A purpose-built music bot with only two text commands and one polished Discord c
 1. Open <https://discord.com/developers/applications> and choose **New Application**.
 2. Give the application a name. Open **Bot** and add/create the bot user if the portal asks.
 3. Copy the bot token and keep it private. Do **not** paste it into this README, source code, or GitHub. If you expose it, reset the token immediately.
-4. On the **Bot** page, enable **Message Content Intent**. The bot uses `.join` and `.play` message commands, so it needs this intent.
+4. On the **Bot** page, enable **Message Content Intent**. The bot uses `.join`, `.play`, and `.stop` message commands, so it needs this intent.
 5. For maximum privacy, turn **Public Bot** off if the option is available. The bot also checks the configured server ID in code.
 6. Open **OAuth2 → URL Generator**. Select the `bot` scope. Under Bot Permissions, select:
    - View Channels
@@ -137,6 +139,8 @@ Do not generate a public domain for either service. The bot talks to Discord thr
    - **Stop** clears current playback and the queue but keeps the bot connected to voice.
    - **Loop** repeats the current track until turned off.
 5. Join a different voice channel and type `.join` there. The bot should move to that channel. Only one voice channel per server can be active per bot account.
+6. Try `.stop` to stop playback and clear the queue while leaving the bot connected.
+7. Leave the voice channel empty; music should pause. Rejoin, or have another human join, to resume the track.
 6. Restart/redeploy `music-bot`. With the `/data` volume attached, it should try to rejoin the saved channel and restore the saved current URL and queue. The current link starts from the beginning.
 
 ## Step 8 — Optional: improve Spotify / Apple Music resolution
@@ -154,9 +158,10 @@ For Apple Music, add a valid MusicKit/Apple Music API token as `APPLE_MUSIC_API_
 
 - `.join` — join or move to the voice channel you are currently in; remains connected when idle.
 - `.play <song name or link>` — search for a song by name, play a public supported media URL, or queue playlist tracks. Plain-text search tries YouTube Music, YouTube, then SoundCloud.
+- `.stop` — stop playback and clear the queue while remaining connected.
 - The panel is the only playback UI: Pause/Resume, Next, Stop, Repeat Current Track.
 
-Commands/buttons are restricted to the configured server. The controls only work for someone currently in the same voice channel as the bot. The bot intentionally has no `.leave`, `.skip`, `.stop`, `.loop`, `.help`, dashboard, or other text commands.
+Commands/buttons are restricted to the configured server. The controls and `.stop` command only work for someone currently in the same voice channel as the bot. The bot intentionally has no `.leave`, `.skip`, `.loop`, `.help`, dashboard, or other text commands.
 
 ---
 
