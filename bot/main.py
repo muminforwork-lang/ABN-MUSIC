@@ -297,8 +297,7 @@ class PrivateMusicBot(commands.Bot):
         player.inactive_channel_tokens = 0
         self.music.voice_channel_id = channel.id
         await self.music.save()
-        return player
-    async def start_track(self, player: wavelink.Player, track: wavelink.Playable) -> None:
+        return player    async def start_track(self, player: wavelink.Player, track: wavelink.Playable) -> None:
         self.music.current = track
         self.music.current_url = track_url(track) or self.music.current_url
         await self.music.save()
@@ -597,8 +596,7 @@ class PrivateMusicBot(commands.Bot):
                     asyncio.create_task(self._recover_voice(), name="recover-voice")
                 return
 
-            player = self.player()
-            if player and player.connected and self.music.current is not None:
+            player = self.player()            if player and player.connected and self.music.current is not None:
                 if after.mute and not self._auto_paused_for_server_mute:
                     try:
                         if not player.paused:
@@ -644,7 +642,7 @@ class PrivateMusicBot(commands.Bot):
                     log.exception("Could not auto-pause playback for an empty voice channel.")
         elif humans_present and self._auto_paused_for_empty:
             self._auto_paused_for_empty = False
-            if not self._auto_paused_for_server_mute and not after.mute and player.paused:
+            if not self._auto_paused_for_server_mute and player.paused:
                 try:
                     await player.pause(False)
                     await self.refresh_panel()
