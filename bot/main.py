@@ -153,6 +153,7 @@ class PrivateMusicBot(commands.Bot):
         self._reconnect_pending = False
         self._startup_restore_done = False
         self._auto_paused_for_empty = False
+        self._auto_paused_for_server_mute = False
         self._activity_task: asyncio.Task[None] | None = None
 
     async def setup_hook(self) -> None:
@@ -297,7 +298,6 @@ class PrivateMusicBot(commands.Bot):
         self.music.voice_channel_id = channel.id
         await self.music.save()
         return player
-
     async def start_track(self, player: wavelink.Player, track: wavelink.Playable) -> None:
         self.music.current = track
         self.music.current_url = track_url(track) or self.music.current_url
@@ -589,12 +589,35 @@ class PrivateMusicBot(commands.Bot):
         if member.guild.id != GUILD_ID:
             return
 
-        # The bot's own disconnect recovery.
+        # Handle the bot's own voice state: disconnect recovery and server mute/unmute.
         if self.user and member.id == self.user.id:
             if before.channel is not None and after.channel is None and self.music.voice_channel_id:
                 if not self._reconnect_pending:
                     self._reconnect_pending = True
                     asyncio.create_task(self._recover_voice(), name="recover-voice")
+                return
+
+            player = self.player()
+            if player and player.connected and self.music.current is not None:
+                if after.mute and not self._auto_paused_for_server_mute:
+                    try:
+                        if not player.paused:
+                            await player.pause(True)
+                        self._auto_paused_for_server_mute = True
+                        await self.refresh_panel()
+                        log.info("Paused music because the bot was server-muted.")
+                    except Exception:
+                        log.exception("Could not pause music after the bot was server-muted.")
+                elif not after.mute and self._auto_paused_for_server_mute:
+                    self._auto_paused_for_server_mute = False
+                    humans_present = bool(player.channel and any(not person.bot for person in player.channel.members))
+                    if humans_present and not self._auto_paused_for_empty and player.paused:
+                        try:
+                            await player.pause(False)
+                            await self.refresh_panel()
+                            log.info("Resumed music because the bot was server-unmuted.")
+                        except Exception:
+                            log.exception("Could not resume music after the bot was server-unmuted.")
             return
 
         # Ignore other bots; only real humans determine whether the room is empty.
@@ -608,24 +631,26 @@ class PrivateMusicBot(commands.Bot):
             return
 
         humans_present = any(not person.bot for person in voice_channel.members)
-        if not humans_present and self.music.current is not None and not player.paused:
-            # Pause rather than discard the current track, so it can resume when someone returns.
-            try:
-                await player.pause(True)
-                self._auto_paused_for_empty = True
-                await self.refresh_panel()
-                log.info("Paused music because the voice channel became empty.")
-            except Exception:
-                log.exception("Could not auto-pause playback for an empty voice channel.")
-        elif humans_present and self._auto_paused_for_empty and player.paused:
-            try:
-                await player.pause(False)
-                self._auto_paused_for_empty = False
-                await self.refresh_panel()
-                log.info("Resumed music because a human returned to voice.")
-            except Exception:
-                log.exception("Could not resume playback when a human returned.")
-
+        if not humans_present and self.music.current is not None:
+            # Bots do not count as people. Remember the reason even if another condition
+            # (such as server mute) has already paused the track.
+            self._auto_paused_for_empty = True
+            if not player.paused:
+                try:
+                    await player.pause(True)
+                    await self.refresh_panel()
+                    log.info("Paused music because no human remains in the voice channel.")
+                except Exception:
+                    log.exception("Could not auto-pause playback for an empty voice channel.")
+        elif humans_present and self._auto_paused_for_empty:
+            self._auto_paused_for_empty = False
+            if not self._auto_paused_for_server_mute and not after.mute and player.paused:
+                try:
+                    await player.pause(False)
+                    await self.refresh_panel()
+                    log.info("Resumed music because a human returned to voice.")
+                except Exception:
+                    log.exception("Could not resume playback when a human returned.")
     async def _recover_voice(self) -> None:
         try:
             await asyncio.sleep(4)
