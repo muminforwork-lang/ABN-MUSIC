@@ -46,10 +46,6 @@ lavalink:
     soundcloudSearchEnabled: true
     soundcloudFilterOutPreviewTracks: false
     gc-warnings: true
-  logging:
-    level:
-      root: INFO
-      lavalink: INFO
 
 # LavaSrc config belongs at the YAML root under 'plugins'.
 # Spotify links resolve track metadata and mirror playable audio via the configured providers;
@@ -61,7 +57,6 @@ plugins:
     allowDirectVideoIds: true
     allowDirectPlaylistIds: true
     clients:
-      - TV
       - MUSIC
       - ANDROID_VR
       - WEB
@@ -97,3 +92,9 @@ plugins:
       searchLimit: 10
       playlistLoadLimit: 100
       mixPlaylistLoadLimit: 25
+
+logging:
+  level:
+    root: INFO
+    lavalink: INFO
+    dev.lavalink.youtube.http.YoutubeOauth2Handler: INFO
