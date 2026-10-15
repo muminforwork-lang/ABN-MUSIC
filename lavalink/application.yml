@@ -69,8 +69,8 @@ plugins:
       - 'scsearch:%QUERY%'
       - 'ytsearch:%QUERY%'
     sources:
-      spotify: false          # <--- Turned off
-      applemusic: false       # <--- Turned off (needs API token anyway)
+      spotify: false
+      applemusic: false
       deezer: false
       yandexmusic: false
       flowerytts: false
@@ -92,3 +92,6 @@ logging:
     lavalink: INFO
     dev.lavalink.youtube: INFO
     dev.lavalink.youtube.http.YoutubeOauth2Handler: INFO
+    # DAVE/Koe tracing for voice connection troubleshooting
+    moe.kyokobot.koe.internal.dave: TRACE
+    moe.kyokobot.koe.internal.gateway: TRACE
