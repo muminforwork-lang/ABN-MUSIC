@@ -14,7 +14,6 @@ lavalink:
   server:
     password: "${LAVALINK_PASSWORD}"
     sources:
-      # The built-in YouTube source is deprecated; use the maintained plugin above.
       youtube: false
       bandcamp: true
       soundcloud: true
@@ -47,9 +46,6 @@ lavalink:
     soundcloudFilterOutPreviewTracks: false
     gc-warnings: true
 
-# LavaSrc config belongs at the YAML root under 'plugins'.
-# Spotify links resolve track metadata and mirror playable audio via the configured providers;
-# the bot does not stream protected Spotify subscription audio.
 plugins:
   youtube:
     enabled: true
@@ -64,15 +60,17 @@ plugins:
       - TVHTML5_SIMPLY
     oauth:
       enabled: true
-      #refreshToken: "${YOUTUBE_REFRESH_TOKEN:}"
+      refreshToken: "${YOUTUBE_REFRESH_TOKEN:}"
       skipInitialization: false
+
   lavasrc:
     providers:
-      - 'ytsearch:"%ISRC%"'
+      - 'ytmsearch:%QUERY%'
+      - 'scsearch:%QUERY%'
       - 'ytsearch:%QUERY%'
     sources:
-      spotify: true
-      applemusic: true
+      spotify: false          # <--- Turned off
+      applemusic: false       # <--- Turned off (needs API token anyway)
       deezer: false
       yandexmusic: false
       flowerytts: false
@@ -82,11 +80,6 @@ plugins:
       qobuz: false
       ytdlp: true
       jiosaavn: false
-    spotify:
-      clientId: "${SPOTIFY_CLIENT_ID:}"
-      clientSecret: "${SPOTIFY_CLIENT_SECRET:}"
-    applemusic:
-      mediaAPIToken: "${APPLE_MUSIC_API_TOKEN:}"
     ytdlp:
       path: "/usr/local/bin/yt-dlp"
       searchLimit: 10
@@ -97,4 +90,5 @@ logging:
   level:
     root: INFO
     lavalink: INFO
+    dev.lavalink.youtube: INFO
     dev.lavalink.youtube.http.YoutubeOauth2Handler: INFO
